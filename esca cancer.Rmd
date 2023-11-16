@@ -1,0 +1,140 @@
+---
+title: "Esophagous Cancer"
+author: "Ali Akbar"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Markdown
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+
+```{r cars}
+summary(cars)
+```
+
+## Including Plots
+
+You can also embed plots, for example:
+
+```{r pressure, echo=FALSE}
+plot(pressure)
+```
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+
+# Load necessary libraries
+library(TCGAbiolinks)
+library(DT)
+library(SummarizedExperiment)
+library(dplyr)
+library(stringr)
+
+# Helper function to display datatable for query results
+display_query_results <- function(query, page_length = 5) {
+  result <- getResults(query, cols = c("data_type", "cases"))
+  datatable(result, filter = 'top', options = list(scrollX = TRUE, keys = TRUE, pageLength = page_length), rownames = FALSE)
+}
+
+# Helper function to perform GDC queries
+perform_GDC_query <- function(project, data_category, legacy = FALSE, platform = NULL, barcode = NULL, data_type = NULL, workflow_type = NULL) {
+  GDCquery(project = project,
+           data.category = data_category,
+           legacy = legacy,
+           platform = platform,
+           barcode = barcode,
+           data.type = data_type,
+           workflow.type = workflow_type)
+}
+
+# Example: Query and display DNA Methylation data for the first 100 patients
+query_met <- perform_GDC_query("TCGA-ESCA", "DNA Methylation", legacy = FALSE, platform = c("Illumina Human Methylation 450"), barcode = common.patients[1:100])
+display_query_results(query_met)
+
+# Additional data queries and processing
+# Replace these with actual queries and processing as per your analysis requirements
+
+# For example, querying gene expression quantification data
+query_exp <- perform_GDC_query("TCGA-ESCA", "Transcriptome Profiling", data_type = "Gene Expression Quantification", workflow_type = "HTSeq - FPKM-UQ", barcode = common.patients[1:100])
+display_query_results(query_exp)
+
+# ... [Other queries and processing]
+
+# Save data, generate reports, or perform analyses as needed
+# Example: Writing results to CSV
+write.csv(getResults(query_met), "DNA_Methylation_Results.csv")
+
+# ... [Additional code for analysis and saving results]
+
+# End of Script
+
+
+---
+title: "Esophageal Cancer Data Analysis"
+author: "Your Name"
+date: "2023-11-16"
+output: pdf_document
+---
+
+# Introduction
+This document presents an analysis of esophageal cancer data using TCGA database.
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(TCGAbiolinks)
+library(DT)
+# ... (other libraries)
+# Load necessary libraries
+library(TCGAbiolinks)
+library(DT)
+library(SummarizedExperiment)
+library(dplyr)
+library(stringr)
+
+# Helper function to display datatable for query results
+display_query_results <- function(query, page_length = 5) {
+  result <- getResults(query, cols = c("data_type", "cases"))
+  datatable(result, filter = 'top', options = list(scrollX = TRUE, keys = TRUE, pageLength = page_length), rownames = FALSE)
+}
+
+# Helper function to perform GDC queries
+perform_GDC_query <- function(project, data_category, legacy = FALSE, platform = NULL, barcode = NULL, data_type = NULL, workflow_type = NULL) {
+  GDCquery(project = project,
+           data.category = data_category,
+           legacy = legacy,
+           platform = platform,
+           barcode = barcode,
+           data.type = data_type,
+           workflow.type = workflow_type)
+}
+
+# Example: Query and display DNA Methylation data for the first 100 patients
+query_met <- perform_GDC_query("TCGA-ESCA", "DNA Methylation", legacy = FALSE, platform = c("Illumina Human Methylation 450"), barcode = common.patients[1:100])
+display_query_results(query_met)
+
+# Additional data queries and processing
+# Replace these with actual queries and processing as per your analysis requirements
+
+# For example, querying gene expression quantification data
+query_exp <- perform_GDC_query("TCGA-ESCA", "Transcriptome Profiling", data_type = "Gene Expression Quantification", workflow_type = "HTSeq - FPKM-UQ", barcode = common.patients[1:100])
+display_query_results(query_exp)
+
+# ... [Other queries and processing]
+
+# Save data, generate reports, or perform analyses as needed
+# Example: Writing results to CSV
+write.csv(getResults(query_met), "DNA_Methylation_Results.csv")
+
+# ... [Additional code for analysis and saving results]
+
+# End of Script
+
+
+
+

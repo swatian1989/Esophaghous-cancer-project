@@ -1,0 +1,291 @@
+---
+title: 'Genomic Data Analysis using R'
+output: html_document
+---
+
+# Introduction
+This R Markdown document provides a detailed analysis of genomic data using various R packages such as `MultiAssayExperiment`, `ELMER`, and `TCGAbiolinks`. The analysis covers different stages including data acquisition, processing, and visualization.
+
+## 
+
+
+
+```{r}
+
+library(MultiAssayExperiment)
+library(ELMER.data)
+
+library(stringr)
+library(TCGAbiolinks)
+library(dplyr)
+library(ELMER)
+library(MultiAssayExperiment)
+library(parallel)
+library(readr)
+
+```
+
+## Acquiring Genomic Features
+
+This section focuses on acquiring distal probes that are crucial for genomic feature analysis. The `get.feature.probe` function from the respective library is utilized to fetch these probes.
+
+```{r}
+
+distal.probes <- get.feature.probe(genome = "hg38", 
+                                   met.platform = "450K", 
+                                   rm.chr = paste0("chr",c(2:22,"X","Y")))
+
+mae <- createMAE(exp = escaexp.rda, 
+                 met = ESCADNAmet.rda,
+                 save = TRUE,
+                 linearize.exp = TRUE,
+                 save.filename = "mae.rda",
+                 filter.probes = distal.probes,
+                 met.platform = "450K",
+                 genome = "hg19",
+                 TCGA = FALSE)
+group.col <- "definition"
+group1 <-  "Primary solid Tumor"
+group2 <- "Solid Tissue Normal"
+dir.out <- "result"
+diff.dir <-  "hypo" ## Search for hypomethylated probes in group 1
+
+
+sig.diff <- get.diff.meth(data = mae, 
+                          group.col = group.col,
+                          group1 = group1,
+                          group2 = group2,
+                          minSubgroupFrac = 0.2,
+                          sig.dif = 0.3,
+                          diff.dir = diff.dir,
+                          cores = 1, 
+                          
+                          dir.out = dir.out,
+                          pvalue = 0.01)
+
+nearGenes <- GetNearGenes(data = mae, 
+                          probes = sig.diff$probe, 
+                          numFlankingGenes = 20) ## 10 upstream and 10 dowstream gene
+
+
+pair <- get.pair(data = mae,
+                 group.col = group.col,
+                 group1 = group1,
+                 mode = "unsupervised",
+                 group2 = group2,
+                 nearGenes = nearGenes,
+                 diff.dir = diff.dir,
+                 minSubgroupFrac = 0.4, ## % of samples to use in to create groups U/M
+                 permu.dir = file.path(dir.out,"permu"),
+                 permu.size = 100, ## Please set to 100000 to get significant results
+                 raw.pvalue = 0.05,   
+                 Pe = 0.01, ## Please set to 0.001 to get significant results
+                 filter.probes = TRUE, ## See preAssociationProbeFiltering function
+                 filter.percentage = 0.05,
+                 filter.portion = 0.3,
+                 dir.out = dir.out,
+                 cores = 1,
+                 label = diff.dir)
+
+
+
+
+```
+
+## Acquiring Genomic Features
+
+This section focuses on acquiring distal probes that are crucial for genomic feature analysis. The `get.feature.probe` function from the respective library is utilized to fetch these probes.
+
+```{r}
+
+enriched.motif <- get.enriched.motif(data = mae,
+                                     probes = pair$Probe, 
+                                     dir.out = dir.out, 
+                                     label = diff.dir,
+                                     min.incidence = 10,
+                                     lower.OR = 1.1)
+
+
+TF <- get.TFs(data = mae, 
+              mode = "unsupervised",
+              group.col = group.col,
+              group1 = group1,
+              group2 = group2,
+              enriched.motif = enriched.motif,
+              dir.out = dir.out,
+              cores = 1, 
+              label = diff.dir)
+
+
+
+```
+
+## Acquiring Genomic Features
+
+This section focuses on acquiring distal probes that are crucial for genomic feature analysis. The `get.feature.probe` function from the respective library is utilized to fetch these probes.
+
+```{r}
+
+mae <- get(load("mae.rda"))
+
+
+scatter.plot(data = mae,
+             byProbe = list(probe = c("cg00006787"), numFlankingGenes = 40), 
+             category = "definition", 
+             lm = TRUE, ## Draw linear regression curve
+             save = FALSE) 
+
+
+scatter.plot(data = mae,
+             byPair = list(probe = c("cg17405646"), gene = c("ENSG00000253925")), 
+             category = "definition", save = TRUE, lm_line = TRUE) 
+
+
+load("result/getMotif.hypo.enriched.motifs.rda")
+names(enriched.motif)[1]
+
+
+scatter.plot(data = mae,
+             byTF = list(TF = c("NFIL3","ATF4"),
+                         probe = enriched.motif[[names(enriched.motif)[1]]]), 
+             category = "definition",
+             save = TRUE, 
+             lm_line = TRUE)
+
+
+
+```
+
+## Acquiring Genomic Features
+
+This section focuses on acquiring distal probes that are crucial for genomic feature analysis. The `get.feature.probe` function from the respective library is utilized to fetch these probes.
+
+```{r}
+
+mae <- get(load("mae.rda"))
+pair <- read.csv("result/getPair.hypo.pairs.significant.csv")
+
+
+schematic.plot(pair = pair, 
+               data = mae,
+               group.col = "definition",
+               byProbe = pair$Probe[10],
+               save = FALSE)
+
+
+schematic.plot(pair = pair, 
+               data = mae,   
+               group.col = "definition", 
+               byGene = pair$GeneID[10],
+               save = FALSE)
+
+motif.enrichment.plot(motif.enrichment = "result/getMotif.hypo.motif.enrichment.csv", 
+                      significant = list(OR = 1.5,lowerOR = 1.3), 
+                      label = "hypo", 
+                      save = FALSE)  
+
+
+motif.enrichment.plot(motif.enrichment = "result/getMotif.hypo.motif.enrichment.csv", 
+                     significant = list(OR = 1.5,lowerOR = 1.3), 
+                     label = "hypo", 
+                     summary = TRUE,
+                     save = FALSE)  
+
+load("result/getTF.hypo.TFs.with.motif.pvalue.rda")
+motif <- colnames(TF.meth.cor)[5]
+TF.rank.plot(motif.pvalue = TF.meth.cor, 
+             motif = motif,
+             save = FALSE) 
+
+
+
+```
+
+## Acquiring Genomic Features
+
+This section focuses on acquiring distal probes that are crucial for genomic feature analysis. The `get.feature.probe` function from the respective library is utilized to fetch these probes.
+
+```{r}
+
+mae <- get(load("mae.rda"))
+
+pair <- read.csv("result/getPair.hypo.pairs.significant.csv")
+
+heatmapPairs(data = mae, 
+             group.col = "definition",
+             group1 = "Primary solid Tumor", 
+             annotation.col = c("years_smoked","gender"),
+             group2 = "Solid Tissue Normal",
+             pairs = pair,
+             filename =  NULL)
+
+
+library(stringr)
+library(TCGAbiolinks)
+library(dplyr)
+library(ELMER)
+library(MultiAssayExperiment)
+library(parallel)
+library(readr)
+
+file <- "mae_ESCA_hg38_450K_no_ffpe.rda"
+
+distal.probes <- get.feature.probe(feature = NULL,
+                                   genome = "hg38", 
+                                   met.platform = "450K") 
+
+
+mae <- createMAE(exp = "Data/ESCA/ESCA_RNA_hg38.rda", 
+                 met = "Data/ESCA/ESCA_meth_hg38.rda", 
+                 met.platform = "450K",
+                 genome = "hg38",
+                 linearize.exp = TRUE,
+                 filter.probes = distal.probes,
+                 met.na.cut = 0.2,
+                 save = FALSE,
+                 TCGA = TRUE) 
+
+
+```
+
+## Acquiring Genomic Features
+
+This section focuses on acquiring distal probes that are crucial for genomic feature analysis. The `get.feature.probe` function from the respective library is utilized to fetch these probes.
+
+```{r}
+
+mae <- mae[,!mae$is_ffpe]
+
+
+save(mae, file = "mae_ESCA_hg38_450K_no_ffpe.rda")
+
+dir.out <- "ESCA_unsupervised_hg38/hypo"
+cores <- 10
+
+diff.probes <- get.diff.meth(data = mae, 
+                             group.col = "definition",
+                             group1 = "Primary solid Tumor",
+                             group2 = "Solid Tissue Normal",
+                             diff.dir = "hypo", ## Get probes hypometh. in group 1 
+                             cores = cores,
+                             minSubgroupFrac = 0.2, ## % group samples  used. 
+                             pvalue = 0.01, 
+                             sig.dif = 0.3,
+                             dir.out = dir.out,
+                             save = TRUE)
+
+
+
+
+TCGA.pipe("ESCA",
+          wd = "./ELMER.example",
+          cores = parallel::detectCores()/2,
+          mode = "unsupervised"
+          permu.size = 300,
+          Pe = 0.01,
+          analysis = c("distal.probes","diffMeth","pair","motif","TF.search"),
+          diff.dir = "hypo",
+          rm.chr = paste0("chr",c("X","Y"))
+
+
+```
